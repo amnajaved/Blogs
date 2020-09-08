@@ -1,0 +1,155 @@
+---
+title: ""
+author: ""
+output: 
+  html_document:
+    css: style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+
+
+library(viridis)
+library(readxl)
+library(zoo)
+library(haven)
+library(ggplot2)
+library(dplyr)
+library(lfe)
+library(rdd)
+library(grid)
+library(gtools)
+library(expss)
+library(miceadds)
+library(broom)
+library(pscl)
+library(countreg)
+library(sf)
+library(tidyr)
+library(stringr)
+library(survival)
+library(survminer)
+library(rgdal)
+library(RColorBrewer)
+library(leaflet)
+setwd("C:/Users/amnaj/Google Drive/Projects/Early Marriage")
+
+# Load data and map
+df <- read_dta("Blogs/map.dta")
+map <- st_read("Data/IND_adm/IND_adm2.shp")
+
+df <- df %>% drop_na() %>% 
+      mutate(pr18 = if_else(v511 < 18, 1, 0),
+             dist = as.character(sdistri),
+             state = as.character(v024))
+
+
+avga <- as.data.frame(aggregate(df$pr18, list(df$dist), mean, na.rm = TRUE))
+
+map$NAME_2 <- as.character(map$NAME_2)
+map$NAME_2 <- tolower(map$NAME_2)
+  
+### Match district spellings 
+
+library(plyr)
+avga$dist <-  revalue(avga$Group.1, c("ahmadnagar" = "ahmednagar", "anugul" = "angul", "badgam" = "bagdam", 
+                                 "banaskantha" = "banas kantha", "bangalore" = "bangalore urban", "bargarh" = "baragarh",
+                         "anantnag" = "anantnag (kashmir south)", "baramula" = "baramula (kashmir north)",
+                         "chamarajanagar" = "chamrajnagar", "dadra & nagar haveli" = "dadra and nagar haveli", 
+                          "baudh" = "boudh", 
+                         "dakshina kannada" = "dakshin kannad", "dehradun" = "dehra dun","deoghar" = "deogarh",
+                         "dhubri" = "dhuburi", "gadchiroli" = "garhchiroli", "hazaribagh" = "hazaribag",
+                         "imphal east" = "east imphal", "hardwar" = "haridwar","jagatsinghapur"="jagatsinghpur",
+                          "jajapur" = "jajpur", "janjgir - champa" = "janjgir-champa",
+                         "kupwara" = "kupwara (muzaffarabad)", "korea (koriya)" = "koriya", "kodarma" = "koderma",
+                         "koch bihar" = "kochbihar", "lakhimpur" = "lakhimpur kheri", "mahrajganj"="maharajganj",
+                         "nabarangapur"="nabarangpur", "nicobars"= "nicobar islands", 
+                         "north" = "delhi", "north east" = "delhi", "panchmahal" = "panch mahals",
+                         "north west" = "delhi", "papumpare" = "papum pare","pashchimi singhbhum"="pashchim singhbhum",
+                         "pathanamthitta" = "pattanamtitta",  "purbi singhbhum"="purba singhbhum", 
+                         "rajnandgaon" = "raj nandgaon", "rajouri" = "rajauri", "rangareddy"= "rangareddi",
+                         "ribhoi" = "ri-bhoi", "rudraprayag" = "rudra prayag", "sabarkantha" = "sabar kantha",
+                         "sant ravidas nagar (bhadohi)" = "sant ravi das nagar", "sonipat" = "sonepat",
+                         "senapati (excluding 3 sub-divisions)"= "senapati", "shrawasti" = "shravasti",
+                         "sonitpur" = "sonepur", "thoothukkudi" = "thoothukudi", "tiruchirappalli" ="tiruchchirappalli",
+                         "uttara kannada" = "uttar kannand", "viluppuram" = "villupuram", 
+                         "visakhapatnam" = "vishakhapatnam", "yamunanagar" = "yamuna nagar",
+                         "siddharth nagar" = "siddharth nagar"))
+detach("package:plyr")
+
+### Merge 
+
+map_avg <- map %>% left_join(avga, by = c("NAME_2" = "dist"))
+
+map_avg$prop <- as.numeric(map_avg$x)
+map_avg <- map_avg  %>% mutate(prop = round(prop, digits = 3),
+                                                prop = prop*100)
+map_avg$NAME_2 <- str_to_title(map_avg$NAME_2)
+  
+```
+
+<br>
+
+# Another Increase in the Legal Age of Marriage?
+
+<br><br>
+```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE, fig.align= 'center'}
+
+gg18 <- 
+  ggplot(data = map_avg) + geom_sf(aes(fill = prop)) + theme_minimal() +
+  scale_fill_viridis( limits = c(0,80), breaks = c(20,  40,  60, 80), 
+                   na.value = "grey70", direction = -1, alpha = 1) +
+  theme(   
+    legend.position="bottom",
+    panel.grid = element_blank(), 
+    line = element_blank(), 
+    rect = element_blank(), 
+    axis.line=element_blank(),axis.text.x=element_blank(),
+    axis.text.y=element_blank(),axis.ticks=element_blank(),
+    axis.title.x=element_blank(),
+    panel.grid.major = element_line(colour = "white")) +
+  labs(fill = "Marriage Under 18 (%)") 
+gg18
+
+```
+
+<br><br>
+
+| India's Prime Minister Narendra Modi, in his recent Independence Day speech, spoke about the establishment of a committee to assess the value of increasing the legal age of marriage for women. Modi drew a simple argument: reducing early marriage would reduce malnutrition among young mothers and infants. 
+
+<br>
+
+| Estimates suggest approximately 1.5 million girls under the age 18 are married each year in India.[^1] In the map, I display the proportion of marriages under 18 in India and Kashmir, by district. I use data from the 2015 Demographic and Health Survey which relies on an individual's own report of their age of marriage, rather than government compiled numbers.
+
+<br>
+
+| For context, the current legal age of marriage in India is 18 for women, and 21 for men. India has a history of using the minimum age of marriage as a policy tool to address its various socio-economic problems. In 1929, one of the reasons cited for introducing a legal cutoff of 14 years was the high numbers of young widows in the country. Young girls married to significantly older men would often be left financially and socially unsupported upon their husbands passing. In 1940, the legal age was increased to 15 for girls and in 1978 the cutoff was increased further, from 15 to 18 years.[^2] The latter increase was aimed at reducing the country's burgeoning population. 
+
+<br>
+
+| Such policies often proved effective. In my research, I examine the 1978 change in the minimum age of marriage. I show that the policy decreased the likelihood of a girl being married before attaining the age 18 by approximately 12 percent. I also show that women who delayed marriage were more likely to delay cohabitation, have fewer children, and have more control over their income after marriage. 
+
+<br>
+
+| However, even though previous policies reduced child marriages with some success, I am skeptical about the current proposed change in the legal age of marriage for women. For starters, the margin of change being considered by the Modi government is distinct from earlier policies. An increase from 15 to 18 and from 18 to 21 years should not be expected to have symmetric effects on policy compliance, empowerment or health outcomes for young women. In fact, the latter change is potentially costlier for low income households. 
+
+<br>
+
+| To understand why, it is helpful to consider the social and cultural context. Parents often choose to marry their daughters at a young age as job opportunities for women are few and resources for education are scarce, thus maintaining your daughter is financially costly. On average, dowry payments (money paid by the bride's family to the groom) are also lower for younger brides relative to mature brides. Early marriage, therefore, seems a good option. However, if the option of marriage at 18 years is made illegal, parents may not find it feasible to support their daughters for a further three years and instead choose to ignore the law. 
+
+<br>
+
+| Yet, a three-year increase in the legal age of marriage might further distort the cost of raising a *new-born* daughter, relative to a son. This is not a novel notion. Researchers have documented a surge in female infanticide and sex-selective abortions resulting from increases in the legal age of marriage for women in other countries.[^3] Unfortunately, these are just some examples of the harsh decisions poor families might be forced to take if they cannot financially support their new-born daughters. 
+
+<br>
+
+| In sum, most economists would suggest advancing with caution. Previous legislative changes have failed to eradicate the practice of early marriage, and there is little evidence suggesting another increase in the age of marriage alone is the answer. Instead, the Modi government should consider incentivizing delayed marriage through improved employment (or other) opportunities for women which can offer a valuable substitute for early marriage. 
+
+[^1]: UNICEF
+[^2]: The 1929 and 1940 changes were made under British rule.
+[^3]: Suarez, P.A. Child-bride marriage and female welfare. Eur J Law Econ 45, 1-28 (2018).
+
